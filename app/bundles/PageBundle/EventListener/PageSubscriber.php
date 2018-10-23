@@ -183,6 +183,8 @@ class PageSubscriber extends CommonSubscriber
      */
     public function onPageHit(QueueConsumerEvent $event)
     {
+        $logger = $this->get('monolog.logger.mautic');
+
         $payload                = $event->getPayload();
         $request                = $payload['request'];
         $trackingNewlyGenerated = $payload['isNew'];
@@ -195,7 +197,12 @@ class PageSubscriber extends CommonSubscriber
         $page                   = $pageId ? $pageRepo->find((int) $pageId) : null;
         $lead                   = $leadId ? $leadRepo->find((int) $leadId) : null;
 
-        $this->pageModel->processPageHit($hit, $page, $request, $lead, $trackingNewlyGenerated, false);
-        $event->setResult(QueueConsumerResults::ACKNOWLEDGE);
+        if ($hit != null && $lead != null) {
+          $this->pageModel->processPageHit($hit, $page, $request, $lead, $trackingNewlyGenerated, false);
+          $event->setResult(QueueConsumerResults::ACKNOWLEDGE);
+        } else {
+          $logger->log('error', 'Error processing page hit ' . $pageId . ' for ' . $leadId);
+          $event->setResult(QueueConsumerResults::REJECT);
+        }
     }
 }
